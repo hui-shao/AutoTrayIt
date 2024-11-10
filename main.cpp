@@ -40,12 +40,24 @@ std::wstring Utf8ToWideString(const std::string& str)
     return wstrTo;
 }
 
+// 显示错误弹窗
+void ShowErrorMessage(const std::wstring& message)
+{
+    MessageBoxW(nullptr, message.c_str(), L"Error", MB_ICONERROR | MB_OK);
+}
+
 // 从 TOML 文件中读取关键字
 void LoadKeywords(const std::string& filename)
 {
     try
     {
         std::ifstream ifs(filename);
+        if (!ifs.is_open())
+        {
+            ShowErrorMessage(L"Error: File not found - " + Utf8ToWideString(filename));
+            ExitProcess(EXIT_FAILURE);
+        }
+
         std::string content((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
 
         // Parse the content as a string view
@@ -57,7 +69,13 @@ void LoadKeywords(const std::string& filename)
     }
     catch (const toml::parse_error& err)
     {
-        std::cerr << "Error parsing TOML file: " << err << std::endl;
+        ShowErrorMessage(L"Error parsing TOML file: " + Utf8ToWideString(std::string(err.description())));
+        ExitProcess(EXIT_FAILURE);
+    }
+    catch (const std::exception& e)
+    {
+        ShowErrorMessage(L"Error: " + Utf8ToWideString(e.what()));
+        ExitProcess(EXIT_FAILURE);
     }
 }
 
@@ -167,6 +185,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
     nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
     wcscpy_s(nid.szTip, L"AutoTrayIt");
 
+    // 从 TOML 文件中加载关键字
+    LoadKeywords("config.toml");
+
     // 隐藏主窗口
     ShowWindow(hwnd, SW_HIDE);
     Shell_NotifyIconW(NIM_ADD, &nid);
@@ -174,9 +195,6 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
     // 创建托盘菜单
     hTrayMenu = CreatePopupMenu();
     AppendMenuW(hTrayMenu, MF_STRING, ID_TRAY_EXIT, L"退出");
-
-    // 从 TOML 文件中加载关键字
-    LoadKeywords("config.toml");
 
     // 启动后台线程检查窗口标题中的关键字
     std::thread keywordChecker(CheckWindowsForKeyword);
