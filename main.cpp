@@ -20,6 +20,7 @@ HMENU hTrayMenu; // 托盘菜单句柄
 
 std::atomic running(true); // 标志变量，用于通知线程退出
 std::vector<std::wstring> keywords; // 存储关键字
+std::vector<HWND> hiddenWindows; // 存储已经被隐藏的窗口句柄
 
 std::string WideStringToUtf8(const std::wstring& wstr)
 {
@@ -119,9 +120,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         DestroyWindow(hwnd);
         break;
     case WM_DESTROY:
-        // 当窗口销毁时，删除托盘图标并退出消息循环
-        running = false; // 设置标志，通知线程退出
-        Shell_NotifyIconW(NIM_DELETE, &nid);
+        // 当窗口销毁时
+        for (HWND hiddenHwnd : hiddenWindows) // 恢复所有被隐藏的窗口
+        {
+            ShowWindow(hiddenHwnd, SW_SHOW);
+        }
+        hiddenWindows.clear(); // 清空记录
+        running = false; // 设置标志，通知后台线程退出
+        Shell_NotifyIconW(NIM_DELETE, &nid); // 删除托盘图标
         PostQuitMessage(0);
         break;
     default:
@@ -150,6 +156,7 @@ void CheckWindowsForKeyword()
                 if (wcsstr(title, keyword.c_str()))
                 {
                     ShowWindow(hwnd, SW_HIDE);
+                    hiddenWindows.push_back(hwnd); // 记录被隐藏的窗口句柄
                     break;
                 }
             }
