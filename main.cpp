@@ -9,14 +9,13 @@
 #include <locale>
 #include "toml++/toml.h"
 
-constexpr auto TRAY_ICON_ID = 1;
-constexpr auto WM_TRAYICON = WM_USER + 1;
+constexpr auto WM_TRAYICON = WM_USER + 1; // 用于接收托盘图标消息的共用消息ID
+constexpr auto MAIN_TRAY_ICON_ID = 1;
 constexpr auto ID_TRAY_EXIT = 1001; // 定义退出菜单项的ID
 
-NOTIFYICONDATAW nid;
-HWND hwnd;
-HINSTANCE hInstance;
-HMENU hTrayMenu; // 托盘菜单句柄
+NOTIFYICONDATAW nidMain;
+HWND hwndMain; // 主程序窗口句柄
+HMENU hTrayMenuMain; // 托盘菜单句柄
 
 std::atomic running(true); // 标志变量，用于通知线程退出
 std::vector<std::wstring> keywords; // 存储关键字
@@ -25,6 +24,7 @@ struct HiddenWindowInfo
 {
     HWND hwnd;
     NOTIFYICONDATAW nid;
+    bool manuallyShown; // 标志窗口是否被用户手动显示
 };
 
 std::vector<HiddenWindowInfo> hiddenWindows; // 存储已经被隐藏的窗口信息
@@ -87,7 +87,7 @@ void LoadKeywords(const std::string& filename)
     }
 }
 
-// 窗口过程函数，处理窗口消息
+// 主程序窗口过程函数，处理窗口消息
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
@@ -99,12 +99,36 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             POINT pt;
             GetCursorPos(&pt);
             SetForegroundWindow(hwnd);
-            TrackPopupMenu(hTrayMenu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, nullptr);
+            TrackPopupMenu(hTrayMenuMain, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, nullptr);
         }
         else if (lParam == WM_LBUTTONDBLCLK)
         {
-            // 双击托盘图标时，显示窗口
-            ShowWindow(hwnd, SW_RESTORE);
+            if (wParam == MAIN_TRAY_ICON_ID)
+            {
+                // 双击主程序托盘图标时，显示窗口
+                ShowWindow(hwnd, SW_RESTORE);
+            }
+            else
+            {
+                // 双击被隐藏程序的托盘图标时，切换窗口可见性
+                for (auto& hiddenWindow : hiddenWindows)
+                {
+                    if (hiddenWindow.nid.uID == wParam)
+                    {
+                        if (IsWindowVisible(hiddenWindow.hwnd))
+                        {
+                            ShowWindow(hiddenWindow.hwnd, SW_HIDE);
+                            hiddenWindow.manuallyShown = false;
+                        }
+                        else
+                        {
+                            ShowWindow(hiddenWindow.hwnd, SW_SHOW);
+                            hiddenWindow.manuallyShown = true;
+                        }
+                        break;
+                    }
+                }
+            }
         }
         break;
     case WM_COMMAND:
@@ -119,7 +143,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         if (wParam == SIZE_MINIMIZED)
         {
             ShowWindow(hwnd, SW_HIDE);
-            Shell_NotifyIconW(NIM_ADD, &nid);
+            Shell_NotifyIconW(NIM_ADD, &nidMain);
         }
         break;
     case WM_CLOSE:
@@ -134,8 +158,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
             Shell_NotifyIconW(NIM_DELETE, &hiddenWindow.nid); // 删除被隐藏程序的托盘图标
         }
         hiddenWindows.clear(); // 清空记录
+        Shell_NotifyIconW(NIM_DELETE, &nidMain); // 删除主程序托盘图标
         running = false; // 设置标志，通知后台线程退出
-        Shell_NotifyIconW(NIM_DELETE, &nid); // 删除主程序托盘图标
         PostQuitMessage(0);
         break;
     default:
@@ -151,18 +175,26 @@ void CheckWindowsForKeyword()
     {
         EnumWindows([](HWND hwnd, LPARAM lParam) -> BOOL
         {
-            if (!IsWindowVisible(hwnd)) // 检查窗口是否可见
+            if (!IsWindowVisible(hwnd)) // 检查窗口是否可见，只处理可见窗口
                 return TRUE;
 
             wchar_t title[256];
             GetWindowTextW(hwnd, title, sizeof(title) / sizeof(wchar_t));
-            if (wcslen(title) == 0)
+            if (wcslen(title) == 0) // 跳过没有标题的窗口
                 return TRUE;
 
             for (const auto& keyword : *reinterpret_cast<std::vector<std::wstring>*>(lParam))
             {
-                if (wcsstr(title, keyword.c_str()))
+                if (wcsstr(title, keyword.c_str())) // 如果标题中包含关键字
                 {
+                    // 检查窗口是否已经被手动显示，如果是，则跳过
+                    auto it = std::ranges::find_if(hiddenWindows,
+                                                   [hwnd](const HiddenWindowInfo& info) { return info.hwnd == hwnd; });
+                    if (it != hiddenWindows.end() && it->manuallyShown)
+                    {
+                        continue;
+                    }
+
                     ShowWindow(hwnd, SW_HIDE);
 
                     // 获取被隐藏程序的窗口图标
@@ -175,14 +207,15 @@ void CheckWindowsForKeyword()
                     // 创建被隐藏程序的托盘图标数据
                     NOTIFYICONDATAW hiddenNid = {};
                     hiddenNid.cbSize = sizeof(NOTIFYICONDATAW);
-                    hiddenNid.hWnd = hwnd;
-                    hiddenNid.uID = TRAY_ICON_ID + static_cast<unsigned int>(hiddenWindows.size()) + 1; // 确保每个托盘图标的ID唯一
+                    hiddenNid.hWnd = hwndMain; // 注意使用主程序窗口句柄，以便接收托盘图标消息
+                    hiddenNid.uID = MAIN_TRAY_ICON_ID + static_cast<unsigned int>(hiddenWindows.size()) + 1;
                     hiddenNid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
                     hiddenNid.uCallbackMessage = WM_TRAYICON;
                     hiddenNid.hIcon = hIcon;
                     wcscpy_s(hiddenNid.szTip, title);
                     Shell_NotifyIconW(NIM_ADD, &hiddenNid);
-                    hiddenWindows.push_back({hwnd, hiddenNid}); // 记录被隐藏的窗口信息
+                    hiddenWindows.push_back({hwnd, hiddenNid, false});
+
                     break;
                 }
             }
@@ -197,37 +230,37 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
     // 设置全局区域设置为 UTF-8
     std::setlocale(LC_ALL, ".UTF-8");
 
+    // 创建主程序窗口类
     WNDCLASSW wc = {};
     wc.lpfnWndProc = WindowProc;
     wc.hInstance = hInstance;
-    wc.lpszClassName = L"TrayItExampleClass";
-
+    wc.lpszClassName = L"AutoTrayItMainClass";
     RegisterClassW(&wc);
 
     // 创建主窗口
-    hwnd = CreateWindowExW(0, wc.lpszClassName, L"AutoTrayIt", WS_OVERLAPPEDWINDOW,
-                           CW_USEDEFAULT, CW_USEDEFAULT, 300, 200,
-                           nullptr, nullptr, hInstance, nullptr);
+    hwndMain = CreateWindowExW(0, wc.lpszClassName, L"AutoTrayIt", WS_OVERLAPPEDWINDOW,
+                               CW_USEDEFAULT, CW_USEDEFAULT, 300, 200,
+                               nullptr, nullptr, hInstance, nullptr);
 
     // 初始化托盘图标数据
-    nid.cbSize = sizeof(NOTIFYICONDATAW);
-    nid.hWnd = hwnd;
-    nid.uID = TRAY_ICON_ID;
-    nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    nid.uCallbackMessage = WM_TRAYICON;
-    nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
-    wcscpy_s(nid.szTip, L"AutoTrayIt");
+    nidMain.cbSize = sizeof(NOTIFYICONDATAW);
+    nidMain.hWnd = hwndMain;
+    nidMain.uID = MAIN_TRAY_ICON_ID;
+    nidMain.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    nidMain.uCallbackMessage = WM_TRAYICON;
+    nidMain.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+    wcscpy_s(nidMain.szTip, L"AutoTrayIt");
 
     // 从 TOML 文件中加载关键字
     LoadKeywords("config.toml");
 
     // 隐藏主窗口
-    ShowWindow(hwnd, SW_HIDE);
-    Shell_NotifyIconW(NIM_ADD, &nid);
+    ShowWindow(hwndMain, SW_HIDE);
+    Shell_NotifyIconW(NIM_ADD, &nidMain);
 
     // 创建托盘菜单
-    hTrayMenu = CreatePopupMenu();
-    AppendMenuW(hTrayMenu, MF_STRING, ID_TRAY_EXIT, L"退出");
+    hTrayMenuMain = CreatePopupMenu();
+    AppendMenuW(hTrayMenuMain, MF_STRING, ID_TRAY_EXIT, L"退出");
 
     // 启动后台线程检查窗口标题中的关键字
     std::thread keywordChecker(CheckWindowsForKeyword);
@@ -239,6 +272,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
         DispatchMessage(&msg);
     }
 
+    running = false; // 设置标志，通知后台线程退出
     keywordChecker.join(); // 等待线程结束
     return 0;
 }
