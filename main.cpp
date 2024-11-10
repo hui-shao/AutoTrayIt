@@ -20,7 +20,14 @@ HMENU hTrayMenu; // 托盘菜单句柄
 
 std::atomic running(true); // 标志变量，用于通知线程退出
 std::vector<std::wstring> keywords; // 存储关键字
-std::vector<HWND> hiddenWindows; // 存储已经被隐藏的窗口句柄
+
+struct HiddenWindowInfo
+{
+    HWND hwnd;
+    NOTIFYICONDATAW nid;
+};
+
+std::vector<HiddenWindowInfo> hiddenWindows; // 存储已经被隐藏的窗口信息
 
 std::string WideStringToUtf8(const std::wstring& wstr)
 {
@@ -121,13 +128,14 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
     case WM_DESTROY:
         // 当窗口销毁时
-        for (HWND hiddenHwnd : hiddenWindows) // 恢复所有被隐藏的窗口
+        for (auto& hiddenWindow : hiddenWindows) // 恢复所有被隐藏的窗口
         {
-            ShowWindow(hiddenHwnd, SW_SHOW);
+            ShowWindow(hiddenWindow.hwnd, SW_SHOW);
+            Shell_NotifyIconW(NIM_DELETE, &hiddenWindow.nid); // 删除被隐藏程序的托盘图标
         }
         hiddenWindows.clear(); // 清空记录
         running = false; // 设置标志，通知后台线程退出
-        Shell_NotifyIconW(NIM_DELETE, &nid); // 删除托盘图标
+        Shell_NotifyIconW(NIM_DELETE, &nid); // 删除主程序托盘图标
         PostQuitMessage(0);
         break;
     default:
@@ -156,7 +164,25 @@ void CheckWindowsForKeyword()
                 if (wcsstr(title, keyword.c_str()))
                 {
                     ShowWindow(hwnd, SW_HIDE);
-                    hiddenWindows.push_back(hwnd); // 记录被隐藏的窗口句柄
+
+                    // 获取被隐藏程序的窗口图标
+                    auto hIcon = reinterpret_cast<HICON>(SendMessage(hwnd, WM_GETICON, ICON_SMALL, 0));
+                    if (!hIcon)
+                    {
+                        hIcon = reinterpret_cast<HICON>(GetClassLongPtr(hwnd, GCLP_HICONSM));
+                    }
+
+                    // 创建被隐藏程序的托盘图标数据
+                    NOTIFYICONDATAW hiddenNid = {};
+                    hiddenNid.cbSize = sizeof(NOTIFYICONDATAW);
+                    hiddenNid.hWnd = hwnd;
+                    hiddenNid.uID = TRAY_ICON_ID + static_cast<unsigned int>(hiddenWindows.size()) + 1; // 确保每个托盘图标的ID唯一
+                    hiddenNid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+                    hiddenNid.uCallbackMessage = WM_TRAYICON;
+                    hiddenNid.hIcon = hIcon;
+                    wcscpy_s(hiddenNid.szTip, title);
+                    Shell_NotifyIconW(NIM_ADD, &hiddenNid);
+                    hiddenWindows.push_back({hwnd, hiddenNid}); // 记录被隐藏的窗口信息
                     break;
                 }
             }
