@@ -11,10 +11,12 @@
 
 constexpr auto TRAY_ICON_ID = 1;
 constexpr auto WM_TRAYICON = WM_USER + 1;
+constexpr auto ID_TRAY_EXIT = 1001; // 定义退出菜单项的ID
 
 NOTIFYICONDATAW nid;
 HWND hwnd;
 HINSTANCE hInstance;
+HMENU hTrayMenu; // 托盘菜单句柄
 
 std::atomic running(true); // 标志变量，用于通知线程退出
 std::vector<std::wstring> keywords; // 存储关键字
@@ -65,10 +67,25 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     switch (uMsg)
     {
     case WM_TRAYICON:
-        // 当托盘图标被双击时，恢复窗口
-        if (lParam == WM_LBUTTONDBLCLK)
+        if (lParam == WM_RBUTTONUP)
         {
+            // 显示托盘菜单
+            POINT pt;
+            GetCursorPos(&pt);
+            SetForegroundWindow(hwnd);
+            TrackPopupMenu(hTrayMenu, TPM_RIGHTBUTTON, pt.x, pt.y, 0, hwnd, nullptr);
+        }
+        else if (lParam == WM_LBUTTONDBLCLK)
+        {
+            // 双击托盘图标时，显示窗口
             ShowWindow(hwnd, SW_RESTORE);
+        }
+        break;
+    case WM_COMMAND:
+        if (LOWORD(wParam) == ID_TRAY_EXIT)
+        {
+            // 处理退出菜单项
+            PostMessage(hwnd, WM_CLOSE, 0, 0);
         }
         break;
     case WM_SIZE:
@@ -137,8 +154,9 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
     RegisterClassW(&wc);
 
     // 创建主窗口
-    hwnd = CreateWindowExW(0, wc.lpszClassName, L"AutoTrayIt", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 300,
-                           200, nullptr, nullptr, hInstance, nullptr);
+    hwnd = CreateWindowExW(0, wc.lpszClassName, L"AutoTrayIt", WS_OVERLAPPEDWINDOW,
+                           CW_USEDEFAULT, CW_USEDEFAULT, 300, 200,
+                           nullptr, nullptr, hInstance, nullptr);
 
     // 初始化托盘图标数据
     nid.cbSize = sizeof(NOTIFYICONDATAW);
@@ -147,10 +165,15 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYICON;
     nid.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
-    wcscpy_s(nid.szTip, L"Tray It Example");
+    wcscpy_s(nid.szTip, L"AutoTrayIt");
 
-    ShowWindow(hwnd, nCmdShow);
-    UpdateWindow(hwnd);
+    // 隐藏主窗口
+    ShowWindow(hwnd, SW_HIDE);
+    Shell_NotifyIconW(NIM_ADD, &nid);
+
+    // 创建托盘菜单
+    hTrayMenu = CreatePopupMenu();
+    AppendMenuW(hTrayMenu, MF_STRING, ID_TRAY_EXIT, L"退出");
 
     // 从 TOML 文件中加载关键字
     LoadKeywords("config.toml");
