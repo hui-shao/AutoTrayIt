@@ -1,2 +1,5 @@
 .idea/
 cmake-build*/
+build/
+
+!.idea/cmake.xml

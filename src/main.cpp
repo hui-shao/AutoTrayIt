@@ -7,6 +7,13 @@
 #include "WindowManager.h"
 #include "ConfigManager.h"
 
+
+// 项目版本号
+#define STRINGIFY(x) #x
+#define TOSTRING(x) STRINGIFY(x)
+const std::string VERSION = TOSTRING(PROJECT_VERSION);
+
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
@@ -55,7 +62,8 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
     wc.lpszClassName = L"AutoTrayItMainClass";
     RegisterClassW(&wc);
 
-    HWND hwndMain = CreateWindowExW(0, wc.lpszClassName, L"AutoTrayIt", WS_OVERLAPPEDWINDOW,
+    std::wstring windowTitle = L"AutoTrayIt v" + std::wstring(VERSION.begin(), VERSION.end());
+    HWND hwndMain = CreateWindowExW(0, wc.lpszClassName, windowTitle.c_str(), WS_OVERLAPPEDWINDOW,
                                     CW_USEDEFAULT, CW_USEDEFAULT, 300, 200,
                                     nullptr, nullptr, hInstance, nullptr);
 
