@@ -33,7 +33,7 @@ void ConfigManager::LoadKeywords(const std::string& filename, std::vector<std::w
         std::ifstream ifs(filename);
         if (!ifs.is_open())
         {
-            MessageBoxW(nullptr, L"Error: File not found", L"Error", MB_ICONERROR | MB_OK);
+            MessageBoxW(nullptr, L"Error:\ntoml.config not found.", L"Error - File Not Found", MB_ICONERROR | MB_OK);
             ExitProcess(EXIT_FAILURE);
         }
 
@@ -54,7 +54,7 @@ void ConfigManager::LoadKeywords(const std::string& filename, std::vector<std::w
     }
     catch (const std::exception& e)
     {
-        std::wstring errorMessage = L"Error: " + Utf8ToWideString(e.what());
+        std::wstring errorMessage = L"Error:\n" + Utf8ToWideString(e.what());
         MessageBoxW(nullptr, errorMessage.c_str(), L"Error", MB_ICONERROR | MB_OK);
         ExitProcess(EXIT_FAILURE);
     }
