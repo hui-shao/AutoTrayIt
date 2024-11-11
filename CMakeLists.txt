@@ -24,6 +24,9 @@ file(GLOB SOURCE_FILES
 # 可执行文件
 add_executable(AutoTrayIt WIN32 ${SOURCE_FILES})
 
+# 定义 PROJECT_VERSION 预处理器宏
+target_compile_definitions(AutoTrayIt PRIVATE PROJECT_VERSION=${PROJECT_VERSION})
+
 # 链接库
 target_link_libraries(AutoTrayIt PRIVATE user32 gdi32 shell32 tomlplusplus::tomlplusplus)
 
