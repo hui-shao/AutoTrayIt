@@ -23,7 +23,7 @@ void TrayIconManager::InitMainTrayIcon(HINSTANCE hInstance, HWND hwndMain)
     Shell_NotifyIconW(NIM_ADD, &nidMain);
 }
 
-void TrayIconManager::AddTrayIcon(HWND hwndTarget, HICON hIcon, const std::wstring& title)
+NOTIFYICONDATAW TrayIconManager::AddTrayIcon(const HICON& hIcon, const std::wstring& title)
 {
     NOTIFYICONDATAW hiddenNid = {};
     hiddenNid.cbSize = sizeof(NOTIFYICONDATAW);
@@ -34,9 +34,8 @@ void TrayIconManager::AddTrayIcon(HWND hwndTarget, HICON hIcon, const std::wstri
     hiddenNid.hIcon = hIcon;
     wcscpy_s(hiddenNid.szTip, title.c_str());
     Shell_NotifyIconW(NIM_ADD, &hiddenNid);
-    // 将隐藏的窗口信息保存到 hiddenWindows
-    WindowManager::hiddenWindows.push_back({hwndTarget, hiddenNid, false});
-    // todo 重构，不在此处读写 hiddenwindows，这样无需 hwndTarget 参数
+
+    return hiddenNid;
 }
 
 void TrayIconManager::RemoveTrayIcon(NOTIFYICONDATAW& nid)
@@ -68,30 +67,7 @@ void TrayIconManager::HandleTrayIconMessage(WPARAM wParam, LPARAM lParam)
     }
     else if (lParam == WM_LBUTTONDBLCLK)
     {
-        if (wParam == nidMain.uID)
-        {
-            ShowWindow(nidMain.hWnd, SW_RESTORE); // 双击主程序托盘图标时，显示窗口
-        }
-        else
-        {
-            for (auto& hiddenWindow : WindowManager::hiddenWindows)
-            {
-                // 双击被隐藏程序的托盘图标时，切换窗口可见性
-                if (hiddenWindow.nid.uID == wParam)
-                {
-                    if (IsWindowVisible(hiddenWindow.hwnd))
-                    {
-                        ShowWindow(hiddenWindow.hwnd, SW_HIDE);
-                        hiddenWindow.manuallyShown = false;
-                    }
-                    else
-                    {
-                        ShowWindow(hiddenWindow.hwnd, SW_SHOW);
-                        hiddenWindow.manuallyShown = true;
-                    }
-                    break;
-                }
-            }
-        }
+        if (wParam == nidMain.uID) ShowWindow(nidMain.hWnd, SW_RESTORE); // 双击主程序托盘图标时，显示窗口
+        else WindowManager::ToggleWindowVisibilityByTrayIconId(static_cast<UINT>(wParam)); // 双击被隐藏程序的托盘图标时，切换窗口显示状态
     }
 }

@@ -44,7 +44,8 @@ void WindowManager::CheckWindowsForKeyword(const std::stop_token& stopToken, con
                     }
 
                     // 创建被隐藏程序的托盘图标数据
-                    TrayIconManager::AddTrayIcon(hwnd, hIcon, title);
+                    const auto hiddenNid = TrayIconManager::AddTrayIcon(hIcon, title);
+                    hiddenWindows.push_back({hwnd, hiddenNid, false});
 
                     break;
                 }
@@ -70,6 +71,20 @@ void WindowManager::CheckWindowsForKeyword(const std::stop_token& stopToken, con
     }
 }
 
+// 根据托盘图标ID， 切换被隐藏程序的窗口的可见性，并更新 manuallyShown 标志
+void WindowManager::ToggleWindowVisibilityByTrayIconId(const UINT trayIconId)
+{
+    for (auto& [hwnd, nid, manuallyShown] : hiddenWindows)
+    {
+        if (nid.uID == trayIconId)
+        {
+            bool isVisible = IsWindowVisible(hwnd);
+            ShowWindow(hwnd, isVisible ? SW_HIDE : SW_SHOW);
+            manuallyShown = !isVisible;
+            break;
+        }
+    }
+}
 
 // 恢复所有被隐藏的窗口，注意会清空 hiddenWindows 容器
 void WindowManager::RestoreAllHiddenWindows()

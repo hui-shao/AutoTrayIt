@@ -13,6 +13,8 @@
 #define TOSTRING(x) STRINGIFY(x)
 const std::string VERSION = TOSTRING(PROJECT_VERSION);
 
+// 关键字检查线程定义
+std::jthread keywordChecker;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -38,6 +40,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         DestroyWindow(hwnd);
         break;
     case WM_DESTROY:
+        keywordChecker.request_stop();
         TrayIconManager::RemoveAllTrayIcons(); // 删除所有托盘图标
         WindowManager::RestoreAllHiddenWindows(); // 恢复所有被隐藏的窗口
         PostQuitMessage(0);
@@ -73,7 +76,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
     ShowWindow(hwndMain, SW_HIDE);
 
     // 启动关键字检查线程, jthread 会有 stop_token 参数
-    std::jthread keywordChecker(WindowManager::CheckWindowsForKeyword, std::ref(keywords));
+    keywordChecker = std::jthread(WindowManager::CheckWindowsForKeyword, std::ref(keywords));
 
     MSG msg;
     while (GetMessage(&msg, nullptr, 0, 0))

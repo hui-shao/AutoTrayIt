@@ -9,7 +9,7 @@ class TrayIconManager
 {
 public:
     static void InitMainTrayIcon(HINSTANCE hInstance, HWND hwndMain);
-    static void AddTrayIcon(HWND hwndTarget, HICON hIcon, const std::wstring& title);
+    static NOTIFYICONDATAW AddTrayIcon(const HICON& hIcon, const std::wstring& title);
     static void RemoveTrayIcon(NOTIFYICONDATAW& nid);
     static void RemoveAllTrayIcons();
     static void HandleTrayIconMessage(WPARAM wParam, LPARAM lParam);
