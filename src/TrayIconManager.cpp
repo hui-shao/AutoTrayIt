@@ -53,10 +53,13 @@ void TrayIconManager::HandleTrayIconMessage(WPARAM wParam, LPARAM lParam)
 {
     if (lParam == WM_RBUTTONUP)
     {
-        POINT pt;
-        GetCursorPos(&pt);
-        SetForegroundWindow(nidMain.hWnd);
-        TrackPopupMenu(hTrayMenuMain, TPM_RIGHTBUTTON, pt.x, pt.y, 0, nidMain.hWnd, nullptr);
+        if (wParam == nidMain.uID) // 仅主程序显示托盘图标的上下文菜单
+        {
+            POINT pt;
+            GetCursorPos(&pt);
+            SetForegroundWindow(nidMain.hWnd);
+            TrackPopupMenu(hTrayMenuMain, TPM_RIGHTBUTTON, pt.x, pt.y, 0, nidMain.hWnd, nullptr);
+        }
     }
     else if (lParam == WM_LBUTTONDBLCLK)
     {
