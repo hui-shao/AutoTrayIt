@@ -44,7 +44,6 @@ void WindowManager::CheckWindowsForKeyword(const std::stop_token& stopToken, con
                     }
 
                     // 创建被隐藏程序的托盘图标数据
-                    // 注意用 Main 的 hwnd，以便接收托盘图标消息，回调 WindowProc
                     TrayIconManager::AddTrayIcon(hwnd, hIcon, title);
 
                     break;
@@ -52,6 +51,33 @@ void WindowManager::CheckWindowsForKeyword(const std::stop_token& stopToken, con
             }
             return TRUE;
         }, reinterpret_cast<LPARAM>(&keywords));
+
+        // 检查，如果被隐藏的窗口已关闭，则删除托盘图标，并从 hiddenWindows 移除
+        for (auto it = hiddenWindows.begin(); it != hiddenWindows.end();)
+        {
+            if (!IsWindow(it->hwnd)) // 如果窗口已经被关闭
+            {
+                TrayIconManager::RemoveTrayIcon(it->nid);
+                it = hiddenWindows.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+
         std::this_thread::sleep_for(std::chrono::seconds(3));
     }
+}
+
+
+// 恢复所有被隐藏的窗口，注意会清空 hiddenWindows 容器
+void WindowManager::RestoreAllHiddenWindows()
+{
+    for (auto& hiddenWindow : hiddenWindows)
+    {
+        ShowWindow(hiddenWindow.hwnd, SW_SHOW);
+        Shell_NotifyIconW(NIM_DELETE, &hiddenWindow.nid);
+    }
+    hiddenWindows.clear();
 }

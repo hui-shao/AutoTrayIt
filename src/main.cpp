@@ -38,7 +38,8 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         DestroyWindow(hwnd);
         break;
     case WM_DESTROY:
-        TrayIconManager::RemoveAllTrayIcons(); // 删除所有托盘图标，恢复所有被隐藏的窗口
+        TrayIconManager::RemoveAllTrayIcons(); // 删除所有托盘图标
+        WindowManager::RestoreAllHiddenWindows(); // 恢复所有被隐藏的窗口
         PostQuitMessage(0);
         break;
     default:

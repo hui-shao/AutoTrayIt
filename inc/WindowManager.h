@@ -18,6 +18,7 @@ class WindowManager
 public:
     static void CheckWindowsForKeyword(const std::stop_token& stopToken,
                                        const std::vector<std::wstring>& keywords);
+    static void RestoreAllHiddenWindows();
 
     static std::vector<HiddenWindowInfo> hiddenWindows;
 };
