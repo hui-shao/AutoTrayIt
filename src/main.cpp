@@ -46,7 +46,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         PostQuitMessage(0);
         break;
     default:
-        return DefWindowProcW(hwnd, uMsg, wParam, lParam); // 注意使用W版本，否则窗口标题显示会有问题
+        return DefWindowProcW(hwnd, uMsg, wParam, lParam); // 注意：这里的函数要使用 W 版本，否则窗口标题显示会有问题（只显示第一个字符）
     }
     return 0;
 }

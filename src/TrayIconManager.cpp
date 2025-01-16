@@ -27,7 +27,7 @@ NOTIFYICONDATAW TrayIconManager::AddTrayIcon(const HICON& hIcon, const std::wstr
 {
     NOTIFYICONDATAW hiddenNid = {};
     hiddenNid.cbSize = sizeof(NOTIFYICONDATAW);
-    hiddenNid.hWnd = nidMain.hWnd; // 使用主程序窗口句柄，以便接收托盘图标消息
+    hiddenNid.hWnd = nidMain.hWnd; // 注意：这里要使用主程序窗口句柄，以便在主窗口内注册的 WindowProc 能处理这些托盘图标消息
     hiddenNid.uID = MAIN_TRAY_ICON_ID + static_cast<unsigned int>(WindowManager::hiddenWindows.size()) + 1;
     hiddenNid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     hiddenNid.uCallbackMessage = WM_TRAYICON;
