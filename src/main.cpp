@@ -68,7 +68,7 @@ int APIENTRY wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmd
 
     std::wstring windowTitle = L"AutoTrayIt v" + std::wstring(VERSION.begin(), VERSION.end());
     HWND hwndMain = CreateWindowExW(0, wc.lpszClassName, windowTitle.c_str(), WS_OVERLAPPEDWINDOW,
-                                    CW_USEDEFAULT, CW_USEDEFAULT, 300, 200,
+                                    CW_USEDEFAULT, CW_USEDEFAULT, 320, 200,
                                     nullptr, nullptr, hInstance, nullptr);
 
     // 初始化主程序托盘图标

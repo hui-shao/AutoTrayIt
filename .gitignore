@@ -1,5 +1,6 @@
 .idea/
 cmake-build*/
 build/
+src/version.rc
 
 !.idea/cmake.xml

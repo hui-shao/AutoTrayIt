@@ -1,0 +1,29 @@
+﻿#define _UNICODE
+#include <windows.h>
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION ${PROJECT_VERSION_MAJOR},${PROJECT_VERSION_MINOR},${PROJECT_VERSION_PATCH},${PROJECT_VERSION_TWEAK}
+PRODUCTVERSION ${PROJECT_VERSION}
+FILEFLAGSMASK VS_FF_DEBUG | VS_FF_PRERELEASE
+FILEFLAGS VS_FF_PRIVATEBUILD
+FILEOS VOS_NT_WINDOWS32
+FILETYPE VFT_APP
+{
+    BLOCK "StringFileInfo"
+    {
+        BLOCK "040904b0"
+        {
+            VALUE "CompanyName", "Hui-Shao"
+            VALUE "LegalCopyright", "©2024 Hui-Shao. All rights reserved."
+            VALUE "FileDescription", "Automatically hide windows containing specific keywords."
+            VALUE "FileVersion", "${PROJECT_VERSION_MAJOR},${PROJECT_VERSION_MINOR},${PROJECT_VERSION_PATCH},${PROJECT_VERSION_TWEAK}"
+            VALUE "ProductName", "${PROJECT_NAME}"
+            VALUE "ProductVersion", "${PROJECT_VERSION}"
+        }
+    }
+    BLOCK "VarFileInfo"
+    {
+        VALUE "Translation", 0x0804, 0x04b0  // 简体中文
+        VALUE "Translation", 0x0409, 0x04b0  // 英语（美国）
+    }
+}
