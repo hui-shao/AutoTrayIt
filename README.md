@@ -22,6 +22,8 @@ language: **EN** | [中文](./README_CN.md)
 
 6. When the main program exits, all hidden windows will be restored to visible and all related tray icons will be deleted.
 
+7. To manually remove a tray icon: Hold down Ctrl and double-click the icon. The corresponding window will be visible again and will no longer be automatically hidden.
+
 ### Other matters
 
 + Currently, the main window of this program has no content and is blank. This is normal.

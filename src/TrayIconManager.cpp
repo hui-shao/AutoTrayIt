@@ -67,7 +67,23 @@ void TrayIconManager::HandleTrayIconMessage(WPARAM wParam, LPARAM lParam)
     }
     else if (lParam == WM_LBUTTONDBLCLK)
     {
-        if (wParam == nidMain.uID) ShowWindow(nidMain.hWnd, SW_RESTORE); // 双击主程序托盘图标时，显示窗口
-        else WindowManager::ToggleWindowVisibilityByTrayIconId(static_cast<UINT>(wParam)); // 双击被隐藏程序的托盘图标时，切换窗口显示状态
+        if (GetKeyState(VK_CONTROL) & 0x8000) // Ctrl+双击托盘图标，移除对应的托盘图标，并显示窗口
+        {
+            for (auto& [hwnd, nid, manuallyShown] : WindowManager::hiddenWindows)
+            {
+                if (nid.uID == wParam) // 根据 nid 找到对应的被隐藏窗口
+                {
+                    manuallyShown = true; // 标记为手动显示，防止被意外隐藏
+                    ShowWindow(hwnd, SW_SHOW);
+                    Shell_NotifyIconW(NIM_DELETE, &nid);
+                    break;
+                }
+            }
+        }
+        else // Ctrl未按下，双击托盘图标，切换窗口可见性
+        {
+            if (wParam == nidMain.uID) ShowWindow(nidMain.hWnd, IsWindowVisible(nidMain.hWnd) ? SW_HIDE : SW_SHOW);
+            else WindowManager::ToggleWindowVisibilityByTrayIconId(static_cast<UINT>(wParam)); // 双击被隐藏程序的托盘图标时，切换窗口显示状态
+        }
     }
 }
