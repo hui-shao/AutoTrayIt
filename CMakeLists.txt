@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(AutoTrayIt VERSION 0.1.0) # 项目名称和版本号
+project(AutoTrayIt VERSION 0.1.0.1) # 项目名称和版本号
 
 set(CMAKE_CXX_STANDARD 20)
 
